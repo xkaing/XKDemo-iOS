@@ -9,16 +9,18 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @State private var showComposeView = false
+    @State private var showLiveStream = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            HomeView(selectedTab: $selectedTab, showComposeView: $showComposeView, showLiveStream: $showLiveStream)
                 .tabItem {
                     Label("主页", systemImage: "house.fill")
                 }
                 .tag(0)
             
-            CommunityView()
+            CommunityView(showComposeView: $showComposeView)
                 .tabItem {
                     Label("社区", systemImage: "person.3.fill")
                 }
@@ -31,6 +33,9 @@ struct ContentView: View {
                 .tag(2)
         }
         .tint(.blue)
+        .fullScreenCover(isPresented: $showLiveStream) {
+            LiveStreamView()
+        }
     }
 }
 

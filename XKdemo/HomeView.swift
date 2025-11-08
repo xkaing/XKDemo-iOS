@@ -7,19 +7,92 @@
 
 import SwiftUI
 
+// 卡片配置数据模型
+struct CardConfig {
+    let title: String
+    let description: String
+    let gradientColors: [Color]
+    let action: (() -> Void)?
+    
+    init(title: String, description: String, gradientColors: [Color], action: (() -> Void)? = nil) {
+        self.title = title
+        self.description = description
+        self.gradientColors = gradientColors
+        self.action = action
+    }
+}
+
 struct HomeView: View {
+    @Binding var selectedTab: Int
+    @Binding var showComposeView: Bool
+    @Binding var showLiveStream: Bool
+    
+    // 卡片配置数组
+    private var cardConfigs: [CardConfig] {
+        [
+            CardConfig(
+                title: "开直播",
+                description: "Just show off then",
+                gradientColors: [
+                    Color(red: 0.5, green: 0.2, blue: 0.9),   // 深紫色
+                    Color(red: 0.9, green: 0.3, blue: 0.6),   // 粉红色
+                    Color(red: 1.0, green: 0.5, blue: 0.3),   // 橙红色
+                    Color(red: 1.0, green: 0.7, blue: 0.2)    // 金黄色
+                ],
+                action: {
+                    showLiveStream = true
+                }
+            ),
+            CardConfig(
+                title: "发动态",
+                description: "Share your moments",
+                gradientColors: [
+                    Color(red: 0.2, green: 0.6, blue: 0.9),   // 蓝色
+                    Color(red: 0.3, green: 0.8, blue: 0.7),   // 青绿色
+                    Color(red: 0.4, green: 0.9, blue: 0.5),   // 绿色
+                    Color(red: 0.6, green: 1.0, blue: 0.4)    // 亮绿色
+                ],
+                action: {
+                    selectedTab = 1
+                    // 延迟一下确保页面切换完成后再打开发动态页面
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        showComposeView = true
+                    }
+                }
+            ),
+            CardConfig(
+                title: "待开发",
+                description: "More features coming soon",
+                gradientColors: [
+                    Color(.gray)
+                ]
+            )
+        ]
+    }
+    
     var body: some View {
         NavigationStack {
-            VStack {
-                Image(systemName: "house.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.blue)
-                    .padding()
-                
-                Text("主页")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding()
+            ScrollView {
+                VStack(spacing: 20) {
+                    // 循环渲染所有卡片
+                    ForEach(Array(cardConfigs.enumerated()), id: \.offset) { index, config in
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                config.action?()
+                            }) {
+                                FeatureCard(
+                                    title: config.title,
+                                    description: config.description,
+                                    gradientColors: config.gradientColors
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            Spacer()
+                        }
+                        .padding(.top, index == 0 ? 8 : 0)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
@@ -29,6 +102,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(selectedTab: .constant(0), showComposeView: .constant(false), showLiveStream: .constant(false))
 }
-

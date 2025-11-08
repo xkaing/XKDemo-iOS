@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CommunityView: View {
-    @State private var showComposeView = false
+    @Binding var showComposeView: Bool
     
     // Mock数据
     @State private var posts: [Post] = [
@@ -102,6 +102,6 @@ struct CommunityView: View {
 }
 
 #Preview {
-    CommunityView()
+    CommunityView(showComposeView: .constant(false))
 }
 
