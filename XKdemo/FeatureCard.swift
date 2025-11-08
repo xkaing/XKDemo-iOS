@@ -49,7 +49,7 @@ struct FeatureCard: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
-        .frame(width: 360)
+        .frame(maxWidth: .infinity)
         .frame(minHeight: 200)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 6)

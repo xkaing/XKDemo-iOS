@@ -81,24 +81,22 @@ struct HomeView: View {
                 VStack(spacing: 20) {
                     // 循环渲染所有卡片
                     ForEach(Array(cardConfigs.enumerated()), id: \.offset) { index, config in
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                config.action?()
-                            }) {
-                                FeatureCard(
-                                    title: config.title,
-                                    description: config.description,
-                                    detailDescription: config.detailDescription,
-                                    gradientColors: config.gradientColors
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            Spacer()
+                        Button(action: {
+                            config.action?()
+                        }) {
+                            FeatureCard(
+                                title: config.title,
+                                description: config.description,
+                                detailDescription: config.detailDescription,
+                                gradientColors: config.gradientColors
+                            )
                         }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.horizontal, 16)
                         .padding(.top, index == 0 ? 8 : 0)
                     }
                 }
+                .padding(.vertical, 12)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
