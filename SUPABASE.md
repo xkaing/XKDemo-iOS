@@ -34,21 +34,23 @@
    - **Project URL** (例如: `https://xxxxx.supabase.co`)
    - **anon public** key (anon/public 密钥)
 
-## 步骤 3: 更新 SupabaseManager.swift
+## 步骤 3: 配置 Supabase 连接
 
-打开 `XKdemo/SupabaseManager.swift` 文件，将以下占位符替换为你的实际值：
+打开 `XKdemo/SupabaseConfig.swift` 文件，将以下占位符替换为你的实际值：
 
 ```swift
-let supabaseURL = URL(string: "YOUR_SUPABASE_URL")!
-let supabaseKey = "YOUR_SUPABASE_ANON_KEY"
+static let supabaseURL = "YOUR_SUPABASE_URL"
+static let supabaseKey = "YOUR_SUPABASE_ANON_KEY"
 ```
 
 例如：
 
 ```swift
-let supabaseURL = URL(string: "https://xxxxx.supabase.co")!
-let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+static let supabaseURL = "https://xxxxx.supabase.co"
+static let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
+
+**注意**：所有 Supabase 相关配置都集中在 `SupabaseConfig.swift` 文件中，便于管理和维护。
 
 ## 步骤 4: 配置 Supabase Storage
 
@@ -58,7 +60,7 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 1. 在 Supabase Dashboard 中，进入 **SQL Editor**
 
-2. 打开项目根目录下的 `create_storage_bucket.sql` 文件
+2. 打开项目根目录下的 `SQL Scripts/create_storage_bucket.sql` 文件
 
 3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
 
@@ -85,7 +87,7 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 1. 在 Supabase Dashboard 中，进入 **SQL Editor**
 
-2. 打开项目根目录下的 `create_profiles_table.sql` 文件
+2. 打开项目根目录下的 `SQL Scripts/create_profiles_table.sql` 文件
 
 3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
 
@@ -121,7 +123,7 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 如果你有很多现有用户，可以使用批量迁移脚本：
 
 1. 在 Supabase Dashboard 中，进入 **SQL Editor**
-2. 打开项目根目录下的 `migrate_existing_users_to_profiles.sql` 文件
+2. 打开项目根目录下的 `SQL Scripts/migrate_existing_users_to_profiles.sql` 文件
 3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
 4. 点击 **Run** 执行脚本
 
