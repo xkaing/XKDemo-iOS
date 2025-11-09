@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var authManager: AuthManager
     @State private var selectedTab = 0
     @State private var showComposeView = false
     @State private var showLiveStream = false
@@ -35,10 +36,12 @@ struct ContentView: View {
         .tint(.blue)
         .fullScreenCover(isPresented: $showLiveStream) {
             LiveStreamView()
+                .environmentObject(authManager)
         }
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AuthManager())
 }

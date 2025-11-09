@@ -8,39 +8,6 @@
 import SwiftUI
 import Combine
 
-class AuthManager: ObservableObject {
-    @Published var isLoggedIn: Bool
-    @Published var userEmail: String
-    @Published var userNickname: String
-    
-    init() {
-        // 从 UserDefaults 读取登录状态
-        self.isLoggedIn = UserDefaults.standard.bool(forKey: "isLoggedIn")
-        self.userEmail = UserDefaults.standard.string(forKey: "userEmail") ?? ""
-        self.userNickname = UserDefaults.standard.string(forKey: "userNickname") ?? ""
-    }
-    
-    func login(email: String, nickname: String? = nil) {
-        self.userEmail = email
-        if let nickname = nickname {
-            self.userNickname = nickname
-            UserDefaults.standard.set(nickname, forKey: "userNickname")
-        }
-        self.isLoggedIn = true
-        UserDefaults.standard.set(true, forKey: "isLoggedIn")
-        UserDefaults.standard.set(email, forKey: "userEmail")
-    }
-    
-    func logout() {
-        self.userEmail = ""
-        self.userNickname = ""
-        self.isLoggedIn = false
-        UserDefaults.standard.set(false, forKey: "isLoggedIn")
-        UserDefaults.standard.removeObject(forKey: "userEmail")
-        UserDefaults.standard.removeObject(forKey: "userNickname")
-    }
-}
-
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var email: String = ""
@@ -239,13 +206,20 @@ struct LoginView: View {
         isLoading = true
         errorMessage = ""
         
-        // 模拟登录请求（实际项目中应该调用真实的API）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            
-            // 这里可以添加实际的登录逻辑
-            // 目前只是简单地将状态设置为已登录
-            authManager.login(email: email)
+        // 使用 Supabase 进行登录
+        Task {
+            do {
+                try await authManager.signIn(email: email, password: password)
+                await MainActor.run {
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    // 处理错误信息
+                    errorMessage = "登录失败: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }

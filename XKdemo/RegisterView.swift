@@ -271,15 +271,22 @@ struct RegisterView: View {
         isLoading = true
         errorMessage = ""
         
-        // 模拟注册请求（实际项目中应该调用真实的API）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            
-            // 这里可以添加实际的注册逻辑
-            // 注册成功后自动登录
-            authManager.login(email: email, nickname: trimmedNickname)
-            // 注册成功后自动关闭注册界面（登录状态改变会自动切换界面）
-            dismiss()
+        // 使用 Supabase 进行注册
+        Task {
+            do {
+                try await authManager.signUp(email: email, password: password, nickname: trimmedNickname)
+                await MainActor.run {
+                    isLoading = false
+                    // 注册成功后自动关闭注册界面（登录状态改变会自动切换界面）
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    // 处理错误信息
+                    errorMessage = "注册失败: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }

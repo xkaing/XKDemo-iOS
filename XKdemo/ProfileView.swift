@@ -16,37 +16,21 @@ struct ProfileView: View {
                 VStack(spacing: 0) {
                     // 账号信息卡片
                     VStack(spacing: 16) {
-                        // 头像
-                        AsyncImage(url: URL(string: User.shared.avatar)) { phase in
-                            switch phase {
-                            case .empty:
-                                ProgressView()
-                                    .frame(width: 80, height: 80)
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(Circle())
-                            case .failure:
-                                Image(systemName: "person.circle.fill")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 80, height: 80)
-                                    .foregroundColor(.gray)
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
-                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                        // 头像 - 使用默认图标
+                        Image(systemName: "person.circle.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.blue)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                         
-                        // 昵称（优先显示注册时的昵称，否则显示默认昵称）
-                        Text(authManager.userNickname.isEmpty ? User.shared.name : authManager.userNickname)
+                        // 昵称 - 使用 Supabase 登录后的昵称
+                        Text(authManager.userNickname.isEmpty ? "用户" : authManager.userNickname)
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundColor(.primary)
                         
-                        // 邮箱
+                        // 邮箱 - 使用 Supabase 登录后的邮箱
                         if !authManager.userEmail.isEmpty {
                             Text(authManager.userEmail)
                                 .font(.system(size: 14))

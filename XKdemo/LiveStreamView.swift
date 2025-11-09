@@ -46,6 +46,7 @@ struct CameraPreview: UIViewRepresentable {
 
 struct LiveStreamView: View {
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var authManager: AuthManager
     @State private var captureSession: AVCaptureSession?
     @State private var cameraPermissionStatus: AVAuthorizationStatus = .notDetermined
     @State private var showPermissionAlert = false
@@ -111,30 +112,16 @@ struct LiveStreamView: View {
                 HStack {
                     // 左上角：用户头像和昵称（无背景）
                     HStack(spacing: 8) {
-                        AsyncImage(url: URL(string: User.shared.avatar)) { phase in
-                            switch phase {
-                            case .empty:
-                                ProgressView()
-                                    .frame(width: 32, height: 32)
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 32, height: 32)
-                                    .clipShape(Circle())
-                            case .failure:
-                                Image(systemName: "person.circle.fill")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 32, height: 32)
-                                    .foregroundColor(.white)
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
-                        .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+                        // 使用默认头像图标
+                        Image(systemName: "person.circle.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .foregroundColor(.white)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
                         
-                        Text(User.shared.name)
+                        // 使用 Supabase 登录后的昵称
+                        Text(authManager.userNickname.isEmpty ? "用户" : authManager.userNickname)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.white)
                             .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
@@ -345,5 +332,6 @@ struct VisualEffectView: UIViewRepresentable {
 
 #Preview {
     LiveStreamView()
+        .environmentObject(AuthManager())
 }
 

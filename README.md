@@ -23,10 +23,17 @@
 ### 个人中心
 - **用户信息**：显示用户头像和昵称
 
+### 用户认证
+- **用户注册**：使用邮箱和密码注册新账户
+- **用户登录**：使用邮箱和密码登录
+- **会话管理**：自动管理用户登录状态
+- **用户信息**：存储和管理用户昵称等信息
+
 ## 🛠 技术栈
 
 - **开发语言**：Swift
 - **UI 框架**：SwiftUI
+- **后端服务**：Supabase（认证、数据库）
 - **最低支持版本**：iOS 18.6
 - **开发工具**：Xcode 26.1+
 
@@ -41,6 +48,10 @@ XKdemo/
 ├── ComposePostView.swift     # 发布动态视图
 ├── LiveStreamView.swift      # 直播视图
 ├── ProfileView.swift         # 个人中心视图
+├── LoginView.swift           # 登录视图
+├── RegisterView.swift        # 注册视图
+├── AuthManager.swift         # 认证管理器（Supabase 集成）
+├── SupabaseManager.swift     # Supabase 客户端管理
 ├── FeatureCard.swift         # 功能卡片组件
 ├── PostCard.swift            # 动态卡片组件
 ├── Post.swift                # 动态数据模型
@@ -69,11 +80,16 @@ cd XKDemo-iOS
 open XKdemo.xcodeproj
 ```
 
-3. 配置开发团队
+3. 配置 Supabase（必需）
+   - 参考 [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) 文档
+   - 在 Xcode 中添加 Supabase Swift Package 依赖
+   - 配置 Supabase URL 和 API Key
+
+4. 配置开发团队
    - 在 Xcode 中选择项目
    - 在 Signing & Capabilities 中设置你的开发团队
 
-4. 运行项目
+5. 运行项目
    - 选择目标设备（真机或模拟器）
    - 按 `Cmd + R` 运行
 
@@ -128,9 +144,11 @@ CardConfig(
 
 ## 📝 注意事项
 
-1. **摄像头权限**：真机测试时需要授予摄像头权限
-2. **模拟器限制**：模拟器不支持真实摄像头，会显示占位视图
-3. **网络图片**：动态中的图片使用随机图片服务（picsum.photos）
+1. **Supabase 配置**：使用前必须配置 Supabase 项目（详见 [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)）
+2. **摄像头权限**：真机测试时需要授予摄像头权限
+3. **模拟器限制**：模拟器不支持真实摄像头，会显示占位视图
+4. **网络图片**：动态中的图片使用随机图片服务（picsum.photos）
+5. **邮箱验证**：Supabase 默认可能需要邮箱验证，可在 Supabase Dashboard 中配置
 
 ## 🤝 贡献
 
