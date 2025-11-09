@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject var authManager: AuthManager
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -39,14 +41,37 @@ struct ProfileView: View {
                         .overlay(Circle().stroke(Color.white, lineWidth: 3))
                         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                         
-                        // 昵称
-                        Text(User.shared.name)
+                        // 昵称（优先显示注册时的昵称，否则显示默认昵称）
+                        Text(authManager.userNickname.isEmpty ? User.shared.name : authManager.userNickname)
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundColor(.primary)
+                        
+                        // 邮箱
+                        if !authManager.userEmail.isEmpty {
+                            Text(authManager.userEmail)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
                     .background(Color(.systemBackground))
+                    
+                    // 登出按钮
+                    Button(action: {
+                        authManager.logout()
+                    }) {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("退出登录")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .foregroundColor(.red)
+                        .background(Color(.systemBackground))
+                    }
+                    .padding(.top, 20)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -57,5 +82,6 @@ struct ProfileView: View {
 
 #Preview {
     ProfileView()
+        .environmentObject(AuthManager())
 }
 
