@@ -154,12 +154,12 @@ struct ComposePostView: View {
                     
                     // 生成唯一的文件名（使用用户 ID 和时间戳）
                     let timestamp = Int(Date().timeIntervalSince1970)
-                    let fileName = "moments/\(authManager.userId)_\(timestamp).jpg"
+                    let fileName = "\(SupabaseConfig.momentImagePathPrefix)/\(authManager.userId)_\(timestamp).jpg"
                     
                     // 上传图片
                     contentImgUrl = try await StorageService.shared.uploadImage(
                         image: image,
-                        bucketName: "moment_image",
+                        bucketName: SupabaseConfig.imageBucket,
                         fileName: fileName
                     )
                     

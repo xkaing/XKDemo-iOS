@@ -19,12 +19,12 @@ class StorageService {
     /// 上传图片到 Supabase Storage
     /// - Parameters:
     ///   - image: 要上传的图片
-    ///   - bucketName: 存储桶名称（默认为 "moment_image"）
+    ///   - bucketName: 存储桶名称（默认为配置中的值）
     ///   - fileName: 文件名（如果不提供，将自动生成）
     /// - Returns: 上传后的公开 URL
     func uploadImage(
         image: UIImage,
-        bucketName: String = "moment_image",
+        bucketName: String = SupabaseConfig.imageBucket,
         fileName: String? = nil
     ) async throws -> String {
         // 生成文件名（如果未提供）
@@ -39,7 +39,7 @@ class StorageService {
         }
         
         // 将 UIImage 转换为 JPEG 数据
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let imageData = image.jpegData(compressionQuality: SupabaseConfig.imageCompressionQuality) else {
             throw NSError(
                 domain: "StorageService",
                 code: -1,
@@ -79,15 +79,15 @@ class StorageService {
     ///   - userId: 用户 ID（用于生成唯一文件名）
     /// - Returns: 上传后的公开 URL
     func uploadAvatar(image: UIImage, userId: String) async throws -> String {
-        let fileName = "avatars/\(userId)_\(Int(Date().timeIntervalSince1970)).jpg"
-        return try await uploadImage(image: image, bucketName: "moment_image", fileName: fileName)
+        let fileName = "\(SupabaseConfig.avatarPathPrefix)/\(userId)_\(Int(Date().timeIntervalSince1970)).jpg"
+        return try await uploadImage(image: image, bucketName: SupabaseConfig.imageBucket, fileName: fileName)
     }
     
     /// 删除文件
     /// - Parameters:
     ///   - path: 文件路径
-    ///   - bucketName: 存储桶名称（默认为 "moment_image"）
-    func deleteFile(path: String, bucketName: String = "moment_image") async throws {
+    ///   - bucketName: 存储桶名称（默认为配置中的值）
+    func deleteFile(path: String, bucketName: String = SupabaseConfig.imageBucket) async throws {
         do {
             try await supabase.storage
                 .from(bucketName)

@@ -94,7 +94,7 @@ class ProfileService {
     func fetchProfile(userId: UUID) async throws -> Profile? {
         do {
             let profile: Profile? = try await supabase
-                .from("profiles")
+                .from(SupabaseConfig.profilesTable)
                 .select()
                 .eq("id", value: userId.uuidString)
                 .single()
@@ -139,7 +139,7 @@ class ProfileService {
         
         do {
             let response: Profile = try await supabase
-                .from("profiles")
+                .from(SupabaseConfig.profilesTable)
                 .insert(newProfile)
                 .select()
                 .single()
@@ -184,7 +184,7 @@ class ProfileService {
         
         do {
             let response: Profile = try await supabase
-                .from("profiles")
+                .from(SupabaseConfig.profilesTable)
                 .update(updateData)
                 .eq("id", value: userId.uuidString)
                 .select()

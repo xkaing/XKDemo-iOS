@@ -94,7 +94,7 @@ class MomentsService {
     func fetchMoments() async throws -> [Moment] {
         do {
             let moments: [Moment] = try await supabase
-                .from("moments")
+                .from(SupabaseConfig.momentsTable)
                 .select()
                 .order("publish_time", ascending: false)
                 .execute()
@@ -145,7 +145,7 @@ class MomentsService {
         
         do {
             let response: Moment = try await supabase
-                .from("moments")
+                .from(SupabaseConfig.momentsTable)
                 .insert(newMoment)
                 .select()
                 .single()
