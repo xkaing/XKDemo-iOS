@@ -26,7 +26,7 @@ struct SupabaseConfig {
     
     // MARK: - Storage 存储桶名称
     /// 图片存储桶（用于存储头像和动态图片）
-    static let imageBucket = "moment_image"
+    static let imageBucket = "image"
     
     // MARK: - Storage 路径前缀
     /// 头像存储路径前缀
