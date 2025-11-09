@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -104,6 +105,7 @@ struct ProfileView: View {
                     avatarUrl: $editingAvatarUrl,
                     isUpdating: $isUpdating,
                     errorMessage: $errorMessage,
+                    userId: authManager.userId,
                     onSave: {
                         await updateProfile()
                     },
@@ -138,17 +140,88 @@ struct EditProfileView: View {
     @Binding var avatarUrl: String
     @Binding var isUpdating: Bool
     @Binding var errorMessage: String?
+    let userId: String
     let onSave: () async -> Void
     let onCancel: () -> Void
+    
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var selectedImage: UIImage?
+    @State private var isUploadingImage = false
     
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("基本信息")) {
                     TextField("昵称", text: $nickname)
-                    TextField("头像 URL", text: $avatarUrl)
-                        .keyboardType(.URL)
-                        .autocapitalization(.none)
+                }
+                
+                Section(header: Text("头像")) {
+                    // 显示当前头像或选中的图片
+                    HStack {
+                        Spacer()
+                        if let image = selectedImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 100, height: 100)
+                                .clipShape(Circle())
+                        } else if !avatarUrl.isEmpty, let url = URL(string: avatarUrl) {
+                            AsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .foregroundColor(.gray)
+                            }
+                            .frame(width: 100, height: 100)
+                            .clipShape(Circle())
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .foregroundColor(.gray)
+                                .frame(width: 100, height: 100)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // 图片选择按钮
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        HStack {
+                            Image(systemName: "photo")
+                            Text(selectedImage != nil ? "更换头像" : "选择头像")
+                            Spacer()
+                            if isUploadingImage {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .onChange(of: selectedPhoto) { newItem in
+                        Task {
+                            if let newItem = newItem {
+                                if let data = try? await newItem.loadTransferable(type: Data.self) {
+                                    if let image = UIImage(data: data) {
+                                        selectedImage = image
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 删除头像按钮（如果有头像）
+                    if selectedImage != nil || !avatarUrl.isEmpty {
+                        Button(role: .destructive) {
+                            selectedImage = nil
+                            avatarUrl = ""
+                        } label: {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("删除头像")
+                            }
+                        }
+                    }
                 }
                 
                 if let errorMessage = errorMessage {
@@ -166,18 +239,48 @@ struct EditProfileView: View {
                     Button("取消") {
                         onCancel()
                     }
-                    .disabled(isUpdating)
+                    .disabled(isUpdating || isUploadingImage)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("保存") {
                         Task {
-                            await onSave()
+                            await saveWithImageUpload()
                         }
                     }
-                    .disabled(isUpdating || nickname.isEmpty)
+                    .disabled(isUpdating || isUploadingImage || nickname.isEmpty)
                 }
             }
         }
+    }
+    
+    private func saveWithImageUpload() async {
+        isUpdating = true
+        isUploadingImage = false
+        errorMessage = nil
+        
+        do {
+            // 如果选择了新图片，先上传
+            if let image = selectedImage {
+                isUploadingImage = true
+                
+                // 使用传入的用户 ID 上传头像
+                let uploadedUrl = try await StorageService.shared.uploadAvatar(
+                    image: image,
+                    userId: userId
+                )
+                
+                avatarUrl = uploadedUrl
+                isUploadingImage = false
+            }
+            
+            // 保存资料
+            await onSave()
+        } catch {
+            isUploadingImage = false
+            errorMessage = "上传失败: \(error.localizedDescription)"
+        }
+        
+        isUpdating = false
     }
 }
 

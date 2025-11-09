@@ -17,6 +17,7 @@ struct ComposePostView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var isPublishing = false
+    @State private var isUploadingImage = false
     @State private var errorMessage: String?
     
     var body: some View {
@@ -77,6 +78,9 @@ struct ComposePostView: View {
                             Text("添加照片")
                                 .font(.system(size: 17))
                             Spacer()
+                            if isUploadingImage {
+                                ProgressView()
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
@@ -112,7 +116,7 @@ struct ComposePostView: View {
                     Button("发布") {
                         publishPost()
                     }
-                    .disabled(content.isEmpty || isPublishing)
+                    .disabled(content.isEmpty || isPublishing || isUploadingImage)
                 }
             }
             .alert("错误", isPresented: .constant(errorMessage != nil)) {
@@ -131,17 +135,38 @@ struct ComposePostView: View {
         guard !content.isEmpty else { return }
         
         isPublishing = true
+        isUploadingImage = false
         errorMessage = nil
         
         Task {
             do {
-                // 获取用户信息
+                // 从登录账号获取用户信息
                 let userName = authManager.userNickname.isEmpty ? "用户" : authManager.userNickname
-                let userAvatarUrl: String? = nil // 暂时使用默认头像，后续可以上传头像
+                // 使用登录账号的头像 URL，如果为空则使用 nil（前端会显示默认头像）
+                let userAvatarUrl: String? = authManager.userAvatarUrl.isEmpty ? nil : authManager.userAvatarUrl
                 
-                // 如果有图片，这里应该上传到 Supabase Storage 并获取 URL
-                // 目前暂时使用空值，后续可以实现图片上传功能
-                let contentImgUrl: String? = nil
+                // 如果有选中的图片，先上传到 Supabase Storage
+                var contentImgUrl: String? = nil
+                if let image = selectedImage {
+                    await MainActor.run {
+                        isUploadingImage = true
+                    }
+                    
+                    // 生成唯一的文件名（使用用户 ID 和时间戳）
+                    let timestamp = Int(Date().timeIntervalSince1970)
+                    let fileName = "moments/\(authManager.userId)_\(timestamp).jpg"
+                    
+                    // 上传图片
+                    contentImgUrl = try await StorageService.shared.uploadImage(
+                        image: image,
+                        bucketName: "moment_image",
+                        fileName: fileName
+                    )
+                    
+                    await MainActor.run {
+                        isUploadingImage = false
+                    }
+                }
                 
                 // 保存到 Supabase
                 _ = try await MomentsService.shared.createMoment(
@@ -160,6 +185,7 @@ struct ComposePostView: View {
             } catch {
                 await MainActor.run {
                     isPublishing = false
+                    isUploadingImage = false
                     errorMessage = "发布失败: \(error.localizedDescription)"
                 }
             }

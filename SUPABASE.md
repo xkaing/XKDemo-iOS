@@ -50,7 +50,34 @@ let supabaseURL = URL(string: "https://xxxxx.supabase.co")!
 let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-## 步骤 4: 配置 Supabase 数据库
+## 步骤 4: 配置 Supabase Storage
+
+### 创建存储桶（Bucket）
+
+为了存储用户头像和动态图片，需要创建 `moment_image` 存储桶：
+
+1. 在 Supabase Dashboard 中，进入 **SQL Editor**
+
+2. 打开项目根目录下的 `create_storage_bucket.sql` 文件
+
+3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
+
+4. 点击 **Run** 执行脚本
+
+这将创建：
+
+- `moment_image` 存储桶，设置为公开访问
+- 文件大小限制：5MB
+- 允许的文件类型：JPEG、PNG、GIF、WebP
+- 存储策略：允许已认证用户上传，所有人可读取
+
+**或者**，你也可以通过 Supabase Dashboard 手动创建：
+
+1. 进入 **Storage** 页面
+2. 点击 **New bucket**
+3. 输入名称：`moment_image`
+4. 设置为 **Public bucket**
+5. 设置文件大小限制和允许的文件类型
 
 ### 创建 profiles 表
 
@@ -144,7 +171,8 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 - 注册时自动创建用户资料
 - 登录时自动加载用户资料
 - 支持编辑和更新用户资料
-- 头像支持网络图片 URL
+- 头像支持上传到 Supabase Storage
+- 支持从相册选择图片作为头像
 
 ## 后续扩展
 
