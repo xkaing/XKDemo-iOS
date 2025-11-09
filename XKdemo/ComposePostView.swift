@@ -10,12 +10,14 @@ import PhotosUI
 
 struct ComposePostView: View {
     @Environment(\.dismiss) var dismiss
-    @Binding var posts: [Post]
+    @EnvironmentObject var authManager: AuthManager
+    var onPostCreated: (() -> Void)?
     
     @State private var content: String = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var isPublishing = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
@@ -113,6 +115,15 @@ struct ComposePostView: View {
                     .disabled(content.isEmpty || isPublishing)
                 }
             }
+            .alert("错误", isPresented: .constant(errorMessage != nil)) {
+                Button("确定", role: .cancel) {
+                    errorMessage = nil
+                }
+            } message: {
+                if let error = errorMessage {
+                    Text(error)
+                }
+            }
         }
     }
     
@@ -120,37 +131,44 @@ struct ComposePostView: View {
         guard !content.isEmpty else { return }
         
         isPublishing = true
+        errorMessage = nil
         
-        // 生成当前时间
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M-d HH:mm"
-        let currentTime = formatter.string(from: Date())
-        
-        // 如果有图片，这里我们使用一个随机的picsum URL
-        // 在实际应用中，这里应该上传图片到服务器并获取URL
-        let imageUrl: String? = selectedImage != nil ? "https://picsum.photos/id/\(Int.random(in: 200...300))/400/300" : nil
-        
-        // 创建新动态，使用账号信息
-        let newPost = Post(
-            userName: User.shared.name,
-            userAvatar: User.shared.avatar,
-            publishTime: currentTime,
-            content: content,
-            imageUrl: imageUrl
-        )
-        
-        // 插入到列表最上面
-        posts.insert(newPost, at: 0)
-        
-        // 延迟一下，让用户看到发布成功的效果
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            isPublishing = false
-            dismiss()
+        Task {
+            do {
+                // 获取用户信息
+                let userName = authManager.userNickname.isEmpty ? "用户" : authManager.userNickname
+                let userAvatarUrl: String? = nil // 暂时使用默认头像，后续可以上传头像
+                
+                // 如果有图片，这里应该上传到 Supabase Storage 并获取 URL
+                // 目前暂时使用空值，后续可以实现图片上传功能
+                let contentImgUrl: String? = nil
+                
+                // 保存到 Supabase
+                _ = try await MomentsService.shared.createMoment(
+                    userName: userName,
+                    userAvatarUrl: userAvatarUrl,
+                    contentText: content,
+                    contentImgUrl: contentImgUrl
+                )
+                
+                await MainActor.run {
+                    isPublishing = false
+                    dismiss()
+                    // 通知父视图刷新列表
+                    onPostCreated?()
+                }
+            } catch {
+                await MainActor.run {
+                    isPublishing = false
+                    errorMessage = "发布失败: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }
 
 #Preview {
-    ComposePostView(posts: .constant([]))
+    ComposePostView()
+        .environmentObject(AuthManager())
 }
 

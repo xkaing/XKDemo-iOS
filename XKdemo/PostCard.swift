@@ -14,30 +14,40 @@ struct PostCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // 用户信息区域
             HStack(spacing: 12) {
-                // 用户头像
-                AsyncImage(url: URL(string: post.userAvatar)) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(width: 44, height: 44)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                    case .failure:
-                        Image(systemName: "person.circle.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 44, height: 44)
-                            .foregroundColor(.gray)
-                    @unknown default:
-                        EmptyView()
+                // 用户头像 - 如果有 URL 则显示，否则使用默认图标
+                if !post.userAvatar.isEmpty, let avatarUrl = URL(string: post.userAvatar) {
+                    AsyncImage(url: avatarUrl) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(width: 44, height: 44)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 44, height: 44)
+                                .clipShape(Circle())
+                        case .failure:
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 44, height: 44)
+                                .foregroundColor(.gray)
+                        @unknown default:
+                            EmptyView()
+                        }
                     }
+                    .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
+                    .frame(width: 44, height: 44)
+                } else {
+                    // 使用默认头像图标
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 44, height: 44)
+                        .foregroundColor(.gray)
+                        .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
                 }
-                .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
-                .frame(width: 44, height: 44)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     // 用户昵称

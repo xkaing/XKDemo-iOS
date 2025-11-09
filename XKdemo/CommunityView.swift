@@ -9,77 +9,53 @@ import SwiftUI
 
 struct CommunityView: View {
     @Binding var showComposeView: Bool
+    @EnvironmentObject var authManager: AuthManager
     
-    // Mock数据
-    @State private var posts: [Post] = [
-        Post(
-            userName: "张三",
-            userAvatar: "https://picsum.photos/id/11/50/50",
-            publishTime: "11-8 14:30",
-            content: "今天天气真好，适合出去走走！原本是形状各不相同的拼图，意外地拼成了完美的圆。",
-            imageUrl: "https://picsum.photos/id/101/400/300"
-        ),
-        Post(
-            userName: "李四",
-            userAvatar: "https://picsum.photos/id/2/50/50",
-            publishTime: "11-8 13:15",
-            content: "分享一张美丽的风景照片，希望大家喜欢。如果说这趟知感浓度是百分之八十，那么往后的每一次回忆都会让这份情感浓度不只是一份深藏心里的能量。",
-            imageUrl: "https://picsum.photos/id/102/400/300"
-        ),
-        Post(
-            userName: "王五",
-            userAvatar: "https://picsum.photos/id/3/50/50",
-            publishTime: "11-8 12:00",
-            content: "这是我们的同心季，也是给予前行的底气。纯文字动态，没有图片。",
-            imageUrl: nil
-        ),
-        Post(
-            userName: "赵六",
-            userAvatar: "https://picsum.photos/id/4/50/50",
-            publishTime: "11-7 20:45",
-            content: "今天学到了很多新知识，感觉收获满满！",
-            imageUrl: "https://picsum.photos/id/103/400/300"
-        ),
-        Post(
-            userName: "孙七",
-            userAvatar: "https://picsum.photos/id/5/50/50",
-            publishTime: "11-7 18:20",
-            content: "简单的生活，简单的快乐。",
-            imageUrl: nil
-        ),
-        Post(
-            userName: "周八",
-            userAvatar: "https://picsum.photos/id/6/50/50",
-            publishTime: "11-7 15:10",
-            content: "新的一天开始了，加油！",
-            imageUrl: "https://picsum.photos/id/104/400/300"
-        ),
-        Post(
-            userName: "吴九",
-            userAvatar: "https://picsum.photos/id/7/50/50",
-            publishTime: "11-7 10:30",
-            content: "分享一些生活感悟，希望大家都能找到属于自己的快乐。",
-            imageUrl: nil
-        ),
-        Post(
-            userName: "郑十",
-            userAvatar: "https://picsum.photos/id/8/50/50",
-            publishTime: "11-6 22:00",
-            content: "晚上好，今天工作很充实。",
-            imageUrl: "https://picsum.photos/id/115/400/300"
-        )
-    ]
+    @State private var posts: [Post] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(posts) { post in
-                        PostCard(post: post)
+                if isLoading {
+                    ProgressView()
+                        .padding(.top, 50)
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("加载失败")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Button("重试") {
+                            loadPosts()
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
+                    .padding(.top, 50)
+                } else if posts.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("还没有动态")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 50)
+                } else {
+                    VStack(spacing: 16) {
+                        ForEach(posts) { post in
+                            PostCard(post: post)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
             }
             .scrollIndicators(.visible)
             .background(Color(.systemGroupedBackground))
@@ -95,7 +71,63 @@ struct CommunityView: View {
                 }
             }
             .sheet(isPresented: $showComposeView) {
-                ComposePostView(posts: $posts)
+                ComposePostView(onPostCreated: {
+                    loadPosts()
+                })
+            }
+            .refreshable {
+                await loadPostsAsync()
+            }
+            .task {
+                await loadPostsAsync()
+            }
+        }
+    }
+    
+    /// 加载动态列表
+    private func loadPosts() {
+        Task {
+            await loadPostsAsync()
+        }
+    }
+    
+    /// 异步加载动态列表
+    private func loadPostsAsync() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let moments = try await MomentsService.shared.fetchMoments()
+            await MainActor.run {
+                self.posts = moments.map { Post(from: $0) }
+                self.isLoading = false
+                print("✅ 成功加载 \(moments.count) 条动态")
+            }
+        } catch {
+            await MainActor.run {
+                // 提供更友好的错误信息
+                var errorText = error.localizedDescription
+                
+                // 检查是否是表不存在或权限问题
+                if let nsError = error as NSError? {
+                    if let errorDescription = nsError.userInfo[NSLocalizedDescriptionKey] as? String {
+                        errorText = errorDescription
+                    }
+                    
+                    // 检查是否是网络错误
+                    if nsError.domain == NSURLErrorDomain {
+                        errorText = "网络连接失败，请检查网络设置"
+                    }
+                }
+                
+                // 检查是否是解码错误
+                if error is DecodingError {
+                    errorText = "数据格式错误，请检查数据库表结构是否正确"
+                }
+                
+                self.errorMessage = errorText
+                self.isLoading = false
+                print("❌ 加载动态失败: \(error)")
             }
         }
     }
@@ -103,5 +135,6 @@ struct CommunityView: View {
 
 #Preview {
     CommunityView(showComposeView: .constant(false))
+        .environmentObject(AuthManager())
 }
 
