@@ -9,6 +9,7 @@
 2. 在 Xcode 中，选择菜单：**File** > **Add Package Dependencies...**
 
 3. 在搜索框中输入 Supabase Swift SDK 的 URL：
+
    ```
    https://github.com/supabase/supabase-swift
    ```
@@ -43,20 +44,74 @@ let supabaseKey = "YOUR_SUPABASE_ANON_KEY"
 ```
 
 例如：
+
 ```swift
 let supabaseURL = URL(string: "https://xxxxx.supabase.co")!
 let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
 
-## 步骤 4: 配置 Supabase 数据库（可选）
+## 步骤 4: 配置 Supabase 数据库
 
-如果你需要在数据库中存储用户信息（如昵称），可以：
+### 创建 profiles 表
 
-1. 在 Supabase Dashboard 中，进入 **Table Editor**
+为了存储用户的头像和昵称，需要创建 `profiles` 表：
 
-2. 创建一个 `profiles` 表（或使用 `auth.users` 表的元数据）
+1. 在 Supabase Dashboard 中，进入 **SQL Editor**
 
-3. 或者，使用用户元数据（user_metadata）来存储昵称（当前实现方式）
+2. 打开项目根目录下的 `create_profiles_table.sql` 文件
+
+3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
+
+4. 点击 **Run** 执行脚本
+
+这将创建：
+
+- `profiles` 表，包含 `id`（关联到 `auth.users.id`）、`nickname`、`avatar_url` 等字段
+- Row Level Security (RLS) 策略，确保用户只能访问和修改自己的资料
+- 自动更新时间戳的触发器
+
+### 关联机制说明
+
+`profiles` 表通过 `id` 字段与 `auth.users` 表关联：
+
+- `profiles.id` 是主键，同时也是外键，引用 `auth.users(id)`
+- 使用 `ON DELETE CASCADE`，当用户被删除时，对应的 profile 也会自动删除
+- 每个 `auth.users` 中的用户可以有且仅有一个对应的 `profiles` 记录
+
+### 处理现有用户（迁移）
+
+如果你已经有用户在 `auth.users` 表中注册，有两种方式处理：
+
+#### 方式 1：自动创建（推荐用于少量用户）
+
+当现有用户下次登录时，系统会自动为他们创建 `profiles` 记录。代码逻辑在 `AuthManager.loadUserInfo()` 中：
+
+- 如果用户登录时没有 `profiles` 记录，会自动创建
+- 会尝试从 `user_metadata` 中迁移昵称等信息
+
+#### 方式 2：批量迁移（推荐用于大量用户）
+
+如果你有很多现有用户，可以使用批量迁移脚本：
+
+1. 在 Supabase Dashboard 中，进入 **SQL Editor**
+2. 打开项目根目录下的 `migrate_existing_users_to_profiles.sql` 文件
+3. 复制 SQL 脚本内容，粘贴到 Supabase SQL Editor 中
+4. 点击 **Run** 执行脚本
+
+这个脚本会：
+
+- 为所有现有用户创建 `profiles` 记录
+- 从 `user_metadata` 中迁移昵称（如果有的话）
+- 显示迁移统计信息
+
+### 为什么使用独立的 profiles 表？
+
+相比直接在 `auth.users` 表的 metadata 中存储数据，使用独立的 `profiles` 表有以下优势：
+
+- ✅ **更灵活**：可以存储更多用户信息（头像、简介、设置等）
+- ✅ **更好的权限控制**：通过 RLS 策略精确控制访问权限
+- ✅ **更容易查询**：可以轻松查询和筛选用户资料
+- ✅ **符合最佳实践**：将认证数据和业务数据分离
 
 ## 步骤 5: 测试
 
@@ -69,6 +124,7 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ## 注意事项
 
 - **安全性**：在生产环境中，不要将 Supabase 密钥硬编码在代码中。考虑使用：
+
   - 环境变量
   - Xcode 的 Build Configuration
   - 配置文件（不提交到 Git）
@@ -83,7 +139,12 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ✅ 用户登录（邮箱 + 密码）  
 ✅ 用户登出  
 ✅ 会话管理  
-✅ 用户信息存储（昵称等）  
+✅ 用户资料管理（昵称、头像）
+
+- 注册时自动创建用户资料
+- 登录时自动加载用户资料
+- 支持编辑和更新用户资料
+- 头像支持网络图片 URL
 
 ## 后续扩展
 
@@ -95,4 +156,3 @@ let supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 - **Edge Functions**：调用 Supabase Edge Functions
 
 更多信息请参考 [Supabase Swift 文档](https://github.com/supabase/supabase-swift)。
-

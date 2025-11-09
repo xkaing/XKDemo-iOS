@@ -15,6 +15,7 @@ class AuthManager: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var userEmail: String = ""
     @Published var userNickname: String = ""
+    @Published var userAvatarUrl: String = ""
     @Published var userId: String = ""
     
     private let supabase = SupabaseManager.shared.client
@@ -24,6 +25,7 @@ class AuthManager: ObservableObject {
         self.isLoggedIn = UserDefaults.standard.bool(forKey: "isLoggedIn")
         self.userEmail = UserDefaults.standard.string(forKey: "userEmail") ?? ""
         self.userNickname = UserDefaults.standard.string(forKey: "userNickname") ?? ""
+        self.userAvatarUrl = UserDefaults.standard.string(forKey: "userAvatarUrl") ?? ""
         self.userId = UserDefaults.standard.string(forKey: "userId") ?? ""
         
         // 检查是否有有效的会话
@@ -38,7 +40,8 @@ class AuthManager: ObservableObject {
         do {
             let session = try await supabase.auth.session
             // 会话有效，更新用户信息
-            await loadUserInfo(userId: session.user.id.uuidString)
+            let userId = session.user.id.uuidString
+            await loadUserInfo(userId: userId)
             self.isLoggedIn = true
         } catch {
             print("检查会话失败: \(error.localizedDescription)")
@@ -51,8 +54,10 @@ class AuthManager: ObservableObject {
         do {
             let session = try await supabase.auth.signIn(email: email, password: password)
             
+            let userId = session.user.id.uuidString
+            
             await MainActor.run {
-                self.userId = session.user.id.uuidString
+                self.userId = userId
                 self.userEmail = session.user.email ?? email
                 self.isLoggedIn = true
                 
@@ -62,8 +67,8 @@ class AuthManager: ObservableObject {
                 UserDefaults.standard.set(self.userId, forKey: "userId")
             }
             
-            // 加载用户信息（包括昵称）
-            await loadUserInfo(userId: self.userId)
+            // 加载用户信息（包括昵称和头像）
+            await loadUserInfo(userId: userId)
         } catch {
             throw error
         }
@@ -72,7 +77,7 @@ class AuthManager: ObservableObject {
     /// 使用邮箱和密码注册新用户
     func signUp(email: String, password: String, nickname: String) async throws {
         do {
-            // 根据 Supabase Swift SDK 官方文档，使用 data 参数传递用户元数据
+            // 注册用户
             let authResponse = try await supabase.auth.signUp(
                 email: email,
                 password: password,
@@ -82,20 +87,45 @@ class AuthManager: ObservableObject {
                 ]
             )
             
-            // authResponse.user 不是可选类型，直接使用
             let user = authResponse.user
+            let userId = user.id
             
-            await MainActor.run {
-                self.userId = user.id.uuidString
-                self.userEmail = email
-                self.userNickname = nickname
-                self.isLoggedIn = true
+            // 创建用户资料
+            do {
+                let profile = try await ProfileService.shared.createProfile(
+                    userId: userId,
+                    nickname: nickname,
+                    avatarUrl: nil
+                )
                 
-                // 保存到 UserDefaults
-                UserDefaults.standard.set(true, forKey: "isLoggedIn")
-                UserDefaults.standard.set(self.userEmail, forKey: "userEmail")
-                UserDefaults.standard.set(self.userNickname, forKey: "userNickname")
-                UserDefaults.standard.set(self.userId, forKey: "userId")
+                await MainActor.run {
+                    self.userId = userId.uuidString
+                    self.userEmail = email
+                    self.userNickname = profile.nickname ?? nickname
+                    self.userAvatarUrl = profile.avatarUrl ?? ""
+                    self.isLoggedIn = true
+                    
+                    // 保存到 UserDefaults
+                    UserDefaults.standard.set(true, forKey: "isLoggedIn")
+                    UserDefaults.standard.set(self.userEmail, forKey: "userEmail")
+                    UserDefaults.standard.set(self.userNickname, forKey: "userNickname")
+                    UserDefaults.standard.set(self.userAvatarUrl, forKey: "userAvatarUrl")
+                    UserDefaults.standard.set(self.userId, forKey: "userId")
+                }
+            } catch {
+                // 如果创建 profile 失败，仍然保存基本用户信息
+                print("⚠️ 创建用户资料失败，但用户已注册: \(error)")
+                await MainActor.run {
+                    self.userId = userId.uuidString
+                    self.userEmail = email
+                    self.userNickname = nickname
+                    self.isLoggedIn = true
+                    
+                    UserDefaults.standard.set(true, forKey: "isLoggedIn")
+                    UserDefaults.standard.set(self.userEmail, forKey: "userEmail")
+                    UserDefaults.standard.set(self.userNickname, forKey: "userNickname")
+                    UserDefaults.standard.set(self.userId, forKey: "userId")
+                }
             }
         } catch {
             throw error
@@ -105,23 +135,61 @@ class AuthManager: ObservableObject {
     /// 加载用户信息
     @MainActor
     private func loadUserInfo(userId: String) async {
+        guard let userIdUUID = UUID(uuidString: userId) else {
+            print("❌ 无效的用户 ID: \(userId)")
+            return
+        }
+        
         do {
-            // 从 Supabase 获取用户信息
+            // 从 Supabase 获取用户认证信息
             let user = try await supabase.auth.user()
-            
-            // 从用户元数据中获取昵称
-            if let nickname = user.userMetadata["nickname"] as? String {
-                self.userNickname = nickname
-                UserDefaults.standard.set(nickname, forKey: "userNickname")
-            } else if let fullName = user.userMetadata["full_name"] as? String {
-                self.userNickname = fullName
-                UserDefaults.standard.set(fullName, forKey: "userNickname")
-            }
             
             // 更新邮箱信息
             if let email = user.email {
                 self.userEmail = email
                 UserDefaults.standard.set(email, forKey: "userEmail")
+            }
+            
+            // 从 profiles 表获取用户资料
+            if let profile = try await ProfileService.shared.fetchProfile(userId: userIdUUID) {
+                // 更新昵称
+                if let nickname = profile.nickname, !nickname.isEmpty {
+                    self.userNickname = nickname
+                    UserDefaults.standard.set(nickname, forKey: "userNickname")
+                } else {
+                    // 如果 profiles 表中没有昵称，尝试从 userMetadata 获取
+                    if let nickname = user.userMetadata["nickname"] as? String {
+                        self.userNickname = nickname
+                        UserDefaults.standard.set(nickname, forKey: "userNickname")
+                    } else if let fullName = user.userMetadata["full_name"] as? String {
+                        self.userNickname = fullName
+                        UserDefaults.standard.set(fullName, forKey: "userNickname")
+                    }
+                }
+                
+                // 更新头像 URL
+                if let avatarUrl = profile.avatarUrl, !avatarUrl.isEmpty {
+                    self.userAvatarUrl = avatarUrl
+                    UserDefaults.standard.set(avatarUrl, forKey: "userAvatarUrl")
+                }
+            } else {
+                // 如果 profiles 表不存在记录，尝试创建（使用 userMetadata 中的信息）
+                let nickname = user.userMetadata["nickname"] as? String ?? user.userMetadata["full_name"] as? String
+                let profile = try await ProfileService.shared.getOrCreateProfile(
+                    userId: userIdUUID,
+                    nickname: nickname,
+                    avatarUrl: nil
+                )
+                
+                if let nickname = profile.nickname, !nickname.isEmpty {
+                    self.userNickname = nickname
+                    UserDefaults.standard.set(nickname, forKey: "userNickname")
+                }
+                
+                if let avatarUrl = profile.avatarUrl, !avatarUrl.isEmpty {
+                    self.userAvatarUrl = avatarUrl
+                    UserDefaults.standard.set(avatarUrl, forKey: "userAvatarUrl")
+                }
             }
         } catch {
             print("加载用户信息失败: \(error.localizedDescription)")
@@ -136,6 +204,7 @@ class AuthManager: ObservableObject {
             await MainActor.run {
                 self.userEmail = ""
                 self.userNickname = ""
+                self.userAvatarUrl = ""
                 self.userId = ""
                 self.isLoggedIn = false
                 
@@ -143,10 +212,39 @@ class AuthManager: ObservableObject {
                 UserDefaults.standard.set(false, forKey: "isLoggedIn")
                 UserDefaults.standard.removeObject(forKey: "userEmail")
                 UserDefaults.standard.removeObject(forKey: "userNickname")
+                UserDefaults.standard.removeObject(forKey: "userAvatarUrl")
                 UserDefaults.standard.removeObject(forKey: "userId")
             }
         } catch {
             print("登出失败: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 更新用户资料
+    func updateProfile(nickname: String?, avatarUrl: String?) async throws {
+        guard let userIdUUID = UUID(uuidString: self.userId) else {
+            throw NSError(
+                domain: "AuthManager",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "无效的用户 ID"]
+            )
+        }
+        
+        let profile = try await ProfileService.shared.updateProfile(
+            userId: userIdUUID,
+            nickname: nickname,
+            avatarUrl: avatarUrl
+        )
+        
+        await MainActor.run {
+            if let nickname = profile.nickname {
+                self.userNickname = nickname
+                UserDefaults.standard.set(nickname, forKey: "userNickname")
+            }
+            if let avatarUrl = profile.avatarUrl {
+                self.userAvatarUrl = avatarUrl
+                UserDefaults.standard.set(avatarUrl, forKey: "userAvatarUrl")
+            }
         }
     }
     
